@@ -313,8 +313,12 @@ class MainWindow(QMainWindow):
         if not path:
             return
         connections = self._store.get_connections()
+        if not connections:
+            QMessageBox.information(self, "Export", "No connections to export.")
+            return
+        fieldnames = list(connections[0].to_dict().keys())
         with open(path, "w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(fh, fieldnames=list(connections[0].to_dict().keys()) if connections else [])
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
             writer.writeheader()
             for c in connections:
                 writer.writerow(c.to_dict())

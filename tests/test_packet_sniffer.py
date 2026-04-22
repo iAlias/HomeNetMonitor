@@ -42,8 +42,6 @@ def _make_tcp_pkt(src: str, dst: str, dport: int = 443, length: int = 200):
     except ImportError:
         pytest.skip("scapy not installed")
 
-    from scapy.layers.inet import IP, TCP  # type: ignore
-
     pkt = IP(src=src, dst=dst) / TCP(dport=dport)
     # Override len so it's predictable
     pkt.__len__ = lambda: length
