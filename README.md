@@ -30,19 +30,6 @@
 - [Domande frequenti](#domande-frequenti)
 - [Contribuire](#contribuire)
 - [Licenza](#licenza)
-  - [Dashboard](#-dashboard)
-  - [Dispositivi](#-dispositivi)
-  - [Connessioni](#-connessioni)
-  - [Alert](#-alert)
-  - [Impostazioni](#️-impostazioni)
-  - [Esportazione CSV](#esportazione-csv)
-- [Compilare il file EXE](#compilare-il-file-exe)
-- [Eseguire i test](#eseguire-i-test)
-- [Struttura del progetto](#struttura-del-progetto)
-- [Flusso dei dati](#flusso-dei-dati)
-- [Domande frequenti](#domande-frequenti)
-- [Contribuire](#contribuire)
-- [Licenza](#licenza)
 
 ---
 
