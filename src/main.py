@@ -5,6 +5,13 @@ import logging
 import sys
 from pathlib import Path
 
+# Ensure the project root (parent of src/) is on sys.path so that
+# "from src.*" imports work when main.py is run directly as a script
+# (e.g. `python src/main.py`).
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from src.core.data_store import DataStore

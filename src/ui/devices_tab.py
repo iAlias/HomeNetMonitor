@@ -8,13 +8,12 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QApplication,
-    QDialog,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMenu,
     QPushButton,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -23,7 +22,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.data_store import DataStore
 from src.models.device import Device
-from src.utils.constants import GREEN_SAFE, RED_FLAGGED, TEXT_COLOR
+from src.utils.constants import ACCENT, GREEN_SAFE, RED_FLAGGED
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,8 @@ logger = logging.getLogger(__name__)
 class DevicesTab(QWidget):
     """Tab that lists all discovered LAN devices with filtering.
 
-    Emits :pyqt:`device_selected` when the user clicks a device row.
+    Emits :pyqt:`device_selected` when the user double-clicks a row or
+    activates the *View Traffic* button.
 
     Args:
         data_store: Shared :class:`~src.core.data_store.DataStore`.
@@ -67,27 +67,76 @@ class DevicesTab(QWidget):
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(8)
 
-        # Search bar
+        # ── Top toolbar ───────────────────────────────────────────────
+        toolbar = QHBoxLayout()
+        toolbar.setSpacing(10)
+        self._count_label = QLabel("No devices discovered")
+        self._count_label.setStyleSheet("color: #aaaaaa; font-size: 12px;")
+        toolbar.addWidget(self._count_label)
+        toolbar.addStretch()
+        self._view_traffic_btn = QPushButton("🔗  View Traffic")
+        self._view_traffic_btn.setToolTip(
+            "Open the Connections tab filtered by the selected device's IP"
+        )
+        self._view_traffic_btn.setEnabled(False)
+        self._view_traffic_btn.clicked.connect(self._on_view_traffic)
+        toolbar.addWidget(self._view_traffic_btn)
+        root.addLayout(toolbar)
+
+        # ── Search bar ────────────────────────────────────────────────
         search_row = QHBoxLayout()
-        search_row.addWidget(QLabel("Search:"))
+        search_row.setSpacing(6)
+        search_row.addWidget(QLabel("🔍"))
         self._search_edit = QLineEdit()
         self._search_edit.setPlaceholderText("Filter by IP, MAC, hostname, or vendor…")
         self._search_edit.textChanged.connect(self._apply_filter)
         search_row.addWidget(self._search_edit)
         root.addLayout(search_row)
 
-        # Device table
+        # ── Stacked widget: table  ↔  empty state ─────────────────────
+        self._stack = QStackedWidget()
+
+        # Page 0 — device table
         self._table = QTableWidget(0, len(self._COLUMNS))
         self._table.setHorizontalHeaderLabels(self._COLUMNS)
         self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.horizontalHeader().setMinimumSectionSize(80)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
-        self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.setShowGrid(False)
+        self._table.cellDoubleClicked.connect(self._on_cell_double_clicked)
         self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._show_context_menu)
-        root.addWidget(self._table)
+        self._table.itemSelectionChanged.connect(self._on_selection_changed)
+        self._table.setToolTip(
+            "Double-click or press 'View Traffic' to filter Connections by this device"
+        )
+        self._stack.addWidget(self._table)
+
+        # Page 1 — empty state
+        empty_page = QWidget()
+        empty_layout = QVBoxLayout(empty_page)
+        empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_icon = QLabel("🖥")
+        empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_icon.setStyleSheet("font-size: 48px;")
+        empty_layout.addWidget(empty_icon)
+        self._empty_label = QLabel(
+            "No devices discovered yet.\n\n"
+            "• Run the application as Administrator\n"
+            "• Ensure Npcap is installed\n"
+            "• Wait for the ARP scan (every 30 s)"
+        )
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet(
+            "color: #666688; font-size: 13px;"
+        )
+        empty_layout.addWidget(self._empty_label)
+        self._stack.addWidget(empty_page)
+
+        root.addWidget(self._stack)
 
     # ------------------------------------------------------------------
     # Refresh
@@ -114,10 +163,20 @@ class DevicesTab(QWidget):
                 or filter_text in d.vendor.lower()
             ]
 
-        self._table.setRowCount(len(devices))
-        for row, dev in enumerate(devices):
-            self._set_row(row, dev)
-        self._table.resizeColumnsToContents()
+        if not devices:
+            self._stack.setCurrentIndex(1)
+            self._count_label.setText("No devices discovered")
+        else:
+            self._stack.setCurrentIndex(0)
+            self._table.setRowCount(len(devices))
+            for row, dev in enumerate(devices):
+                self._set_row(row, dev)
+            self._table.resizeColumnsToContents()
+            online = sum(1 for d in devices if d.status == "Online")
+            total = len(devices)
+            self._count_label.setText(
+                f"{total} device{'s' if total != 1 else ''} ({online} online)"
+            )
 
     def _set_row(self, row: int, dev: Device) -> None:
         """Populate a single table row from a Device.
@@ -130,7 +189,7 @@ class DevicesTab(QWidget):
             dev.ip,
             dev.mac,
             dev.vendor or "Unknown",
-            dev.hostname or "",
+            dev.hostname or "—",
             dev.status,
             dev.first_seen.strftime("%Y-%m-%d %H:%M:%S"),
             dev.last_seen.strftime("%Y-%m-%d %H:%M:%S"),
@@ -138,6 +197,9 @@ class DevicesTab(QWidget):
         color = QColor(GREEN_SAFE) if dev.status == "Online" else QColor(RED_FLAGGED)
         for col, val in enumerate(values):
             item = QTableWidgetItem(val)
+            item.setTextAlignment(
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+            )
             if col == 4:  # Status column — coloured text
                 item.setForeground(color)
             self._table.setItem(row, col, item)
@@ -154,12 +216,24 @@ class DevicesTab(QWidget):
     # Interactions
     # ------------------------------------------------------------------
 
-    def _on_cell_clicked(self, row: int, _col: int) -> None:
-        """Emit the device IP when a row is clicked.
+    def _on_selection_changed(self) -> None:
+        """Enable or disable the View Traffic button based on row selection."""
+        self._view_traffic_btn.setEnabled(bool(self._table.selectedItems()))
+
+    def _on_view_traffic(self) -> None:
+        """Emit the selected device IP to navigate to the Connections tab."""
+        row = self._table.currentRow()
+        if row >= 0:
+            ip_item = self._table.item(row, 0)
+            if ip_item:
+                self.device_selected.emit(ip_item.text())
+
+    def _on_cell_double_clicked(self, row: int, _col: int) -> None:
+        """Navigate to Connections filtered by the double-clicked device.
 
         Args:
-            row: Clicked row.
-            _col: Clicked column (unused).
+            row: Double-clicked row.
+            _col: Double-clicked column (unused).
         """
         ip_item = self._table.item(row, 0)
         if ip_item:
@@ -181,12 +255,16 @@ class DevicesTab(QWidget):
         ip = ip_item.text()
 
         menu = QMenu(self)
-        copy_action = menu.addAction("Copy IP")
-        resolve_action = menu.addAction("Resolve Hostname")
-        block_action = menu.addAction("Block Device (Firewall)")
+        view_action = menu.addAction("🔗  View Traffic")
+        menu.addSeparator()
+        copy_action = menu.addAction("📋  Copy IP")
+        resolve_action = menu.addAction("🔍  Resolve Hostname")
+        block_action = menu.addAction("🚫  Block Device (Firewall)")
         action = menu.exec(self._table.viewport().mapToGlobal(pos))
 
-        if action == copy_action:
+        if action == view_action:
+            self.device_selected.emit(ip)
+        elif action == copy_action:
             QApplication.clipboard().setText(ip)
         elif action == resolve_action:
             self._resolve_hostname(ip)
@@ -221,15 +299,8 @@ class DevicesTab(QWidget):
 
         rule_name = f"HomeNetMonitor_Block_{ip}"
         cmd = [
-            "netsh",
-            "advfirewall",
-            "firewall",
-            "add",
-            "rule",
-            f"name={rule_name}",
-            "dir=out",
-            "action=block",
-            f"remoteip={ip}",
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            f"name={rule_name}", "dir=out", "action=block", f"remoteip={ip}",
         ]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
