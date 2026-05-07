@@ -18,7 +18,10 @@ from PyQt6.QtWidgets import (
 try:
     import netifaces  # type: ignore
 except ImportError:
-    netifaces = None  # type: ignore
+    try:
+        import netifaces2 as netifaces  # type: ignore
+    except ImportError:
+        netifaces = None  # type: ignore
 
 
 class SettingsDialog(QDialog):

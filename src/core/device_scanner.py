@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 try:
     import netifaces  # type: ignore
 except ImportError:  # pragma: no cover
-    netifaces = None  # type: ignore
+    try:
+        import netifaces2 as netifaces  # type: ignore
+    except ImportError:
+        netifaces = None  # type: ignore
 
 try:
     from scapy.layers.l2 import ARP, Ether  # type: ignore

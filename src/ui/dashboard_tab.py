@@ -162,7 +162,10 @@ class DashboardTab(QWidget):
         """Fill the interface combo box from psutil/netifaces."""
         self._iface_combo.clear()
         try:
-            import netifaces  # type: ignore
+            try:
+                import netifaces  # type: ignore
+            except ImportError:
+                import netifaces2 as netifaces  # type: ignore
 
             ifaces = netifaces.interfaces()
             self._iface_combo.addItems(ifaces)
