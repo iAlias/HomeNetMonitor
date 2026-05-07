@@ -15,7 +15,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-import netifaces  # type: ignore
+try:
+    import netifaces  # type: ignore
+except ImportError:
+    netifaces = None  # type: ignore
 
 
 class SettingsDialog(QDialog):
@@ -42,7 +45,7 @@ class SettingsDialog(QDialog):
         # Interface selector
         self._iface_combo = QComboBox()
         try:
-            ifaces = netifaces.interfaces()
+            ifaces = netifaces.interfaces() if netifaces is not None else []
             self._iface_combo.addItems(ifaces)
         except Exception:  # noqa: BLE001
             self._iface_combo.addItem("default")

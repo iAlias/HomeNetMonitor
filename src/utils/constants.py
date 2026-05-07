@@ -36,6 +36,7 @@ GEO_API_RATE_LIMIT: int = 100  # max IPs per batch
 DB_WRITE_INTERVAL_SECONDS: int = 10
 DB_RETENTION_DAYS: int = 7
 TRAFFIC_HISTORY_SECONDS: int = 60  # dashboard graph window
+MAX_CONNECTIONS_MEMORY: int = 10_000  # max in-memory Connection entries
 
 # ---------------------------------------------------------------------------
 # GUI / styling

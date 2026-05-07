@@ -32,7 +32,10 @@ except ImportError:  # pragma: no cover
 
 
 def _get_default_gateway_network() -> Optional[str]:
-    """Return the /24 network of the default gateway interface.
+    """Return the network of the default gateway interface.
+
+    Uses the real subnet mask reported by ``netifaces`` so that networks
+    larger than /24 (e.g. /16 or /22) are scanned correctly.
 
     Returns:
         Network string such as ``"192.168.1.0/24"``, or ``None`` if it
@@ -61,11 +64,10 @@ def _get_default_gateway_network() -> Optional[str]:
         if not ip:
             return None
 
-        # Build a /24 from the host IP
-        parts = ip.split(".")
-        if len(parts) != 4:
-            return None
-        return f"{parts[0]}.{parts[1]}.{parts[2]}.0/24"
+        netmask = addr_info.get("netmask", "255.255.255.0")
+        import ipaddress
+        network = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
+        return str(network)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not determine default gateway network: %s", exc)
         return None

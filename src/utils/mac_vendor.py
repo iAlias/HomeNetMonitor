@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +12,11 @@ class MacVendorLookup:
     """Offline MAC OUI → vendor name lookup.
 
     Loads the bundled ``mac_oui.json`` file once on first use and caches
-    it in memory for the lifetime of the process.
+    it in memory for the lifetime of the instance.
 
     The JSON file must be a flat object mapping 6-char uppercase hex OUI
     prefixes (e.g. ``"A4C138"``) to vendor name strings.
     """
-
-    _cache: Optional[dict[str, str]] = None
 
     def __init__(self, oui_json_path: Path) -> None:
         """Initialise the lookup with a path to the OUI JSON file.

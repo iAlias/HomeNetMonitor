@@ -65,16 +65,22 @@ class GeoLookup:
     def enqueue(self, ip: str) -> None:
         """Enqueue *ip* for geolocation in the next batch.
 
-        Private addresses and already-cached IPs are silently ignored.
+        Private addresses are silently ignored.  Already-cached IPs and
+        IPs already in the pending set are also silently ignored.  The
+        cache check is performed inside the lock so that a concurrent
+        :meth:`_flush` call cannot drain the pending set between the check
+        and the add.
 
         Args:
             ip: IP address to look up.
         """
         if _is_private(ip):
             return
-        if self._store.get_geo_cached(ip) is not None:
-            return
         with self._lock:
+            if ip in self._pending:
+                return
+            if self._store.get_geo_cached(ip) is not None:
+                return
             self._pending.add(ip)
 
     def get(self, ip: str) -> Optional[dict]:

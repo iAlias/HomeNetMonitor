@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Optional
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -15,6 +16,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -33,6 +35,9 @@ _RULE_TYPE_LABELS = {
     "ip_comm": "IP Communication",
     "port": "Port Activity",
 }
+
+# Minimum seconds between repeated firings of the same (rule, device) pair.
+_ALERT_COOLDOWN_SECONDS: int = 60
 
 
 class AddRuleDialog(QDialog):
@@ -122,16 +127,41 @@ class AddRuleDialog(QDialog):
     def get_rule(self) -> Optional[dict]:
         """Return the entered rule as a dict, or ``None`` if invalid.
 
+        Shows an in-dialog error message for invalid parameter values so
+        the user can correct the input before closing.
+
         Returns:
             Dict with keys ``name``, ``rule_type``, ``params``, or ``None``.
         """
         name = self._name_edit.text().strip()
         if not name:
+            QMessageBox.warning(self, "Validation Error", "Rule name cannot be empty.")
             return None
         rt = self._type_combo.currentData()
         params: dict = {"device": self._param1_edit.text().strip() or "any"}
         if rt in ("bandwidth", "ip_comm", "port"):
-            params["value"] = self._param2_edit.text().strip()
+            value = self._param2_edit.text().strip()
+            if rt == "bandwidth":
+                try:
+                    threshold = float(value)
+                    if threshold <= 0:
+                        raise ValueError
+                except ValueError:
+                    QMessageBox.warning(
+                        self, "Validation Error", "Bandwidth threshold must be a positive number."
+                    )
+                    return None
+            elif rt == "port":
+                try:
+                    port_num = int(value)
+                    if not (0 < port_num <= 65535):
+                        raise ValueError
+                except ValueError:
+                    QMessageBox.warning(
+                        self, "Validation Error", "Port must be an integer between 1 and 65535."
+                    )
+                    return None
+            params["value"] = value
         return {"name": name, "rule_type": rt, "params": json.dumps(params)}
 
 
@@ -149,6 +179,10 @@ class AlertsTab(QWidget):
         """Initialise the alerts tab."""
         super().__init__(parent)
         self._store = data_store
+        # Track MACs already seen so we can detect genuinely new devices.
+        self._known_macs: set[str] = {d.mac for d in self._store.get_devices()}
+        # Cooldown tracking: (rule_name, device_ip) -> last_fired_timestamp
+        self._last_fired: dict[tuple[str, str], float] = {}
         self._setup_ui()
         self._start_refresh_timer()
 
@@ -286,6 +320,10 @@ class AlertsTab(QWidget):
         devices = self._store.get_devices()
         connections = self._store.get_connections()
 
+        # Detect devices that appeared since the last evaluation.
+        new_devices = [d for d in devices if d.mac not in self._known_macs]
+        self._known_macs.update(d.mac for d in devices)
+
         for rule in rules:
             if not rule.get("enabled", 1):
                 continue
@@ -296,9 +334,12 @@ class AlertsTab(QWidget):
                 continue
 
             if rt == "new_device":
-                # Fired when a new device appears (not previously in DB)
-                # Actual detection is handled in _on_device_found; skip here
-                pass
+                for device in new_devices:
+                    detail = (
+                        f"Nuovo dispositivo: {device.ip} "
+                        f"({device.mac}) — {device.vendor or 'Vendor sconosciuto'}"
+                    )
+                    self._fire(rule["name"], device.ip, detail)
 
             elif rt == "bandwidth":
                 device_filter = params.get("device", "any")
@@ -344,13 +385,21 @@ class AlertsTab(QWidget):
                         break
 
     def _fire(self, rule_name: str, device_ip: str, detail: str) -> None:
-        """Record an alert and emit the signal.
+        """Record an alert and emit the signal, subject to a cooldown period.
+
+        Repeated firings of the same (rule, device) pair are suppressed for
+        ``_ALERT_COOLDOWN_SECONDS`` to prevent log spam.
 
         Args:
             rule_name: Name of the triggered rule.
             device_ip: Source device IP.
             detail: Human-readable description.
         """
+        key = (rule_name, device_ip)
+        now = time.time()
+        if now - self._last_fired.get(key, 0.0) < _ALERT_COOLDOWN_SECONDS:
+            return
+        self._last_fired[key] = now
         self._store.add_alert(rule_name, device_ip, detail)
         self.alert_fired.emit(rule_name, device_ip, detail)
         logger.info("Alert: [%s] %s — %s", rule_name, device_ip, detail)
