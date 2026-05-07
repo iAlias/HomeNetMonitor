@@ -67,7 +67,13 @@ class DnsResolver:
     def resolve_async(self, ip: str, callback) -> None:
         """Submit a background DNS lookup and call *callback(ip, hostname)*.
 
-        If *ip* is already cached the callback is called synchronously.
+        If *ip* is already cached the callback is called synchronously with
+        the cached value.
+
+        Note: if the cache entry for *ip* is invalidated between the cache
+        check and the callback invocation, the callback will still receive
+        the value that was cached at lookup time.  This is intentional —
+        callers should treat the hostname as a best-effort hint.
 
         Args:
             ip: IPv4 or IPv6 address string.

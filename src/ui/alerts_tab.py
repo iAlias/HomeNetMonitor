@@ -143,10 +143,12 @@ class AddRuleDialog(QDialog):
             value = self._param2_edit.text().strip()
             if rt == "bandwidth":
                 try:
-                    float(value)
+                    threshold = float(value)
+                    if threshold <= 0:
+                        raise ValueError
                 except ValueError:
                     QMessageBox.warning(
-                        self, "Validation Error", "Bandwidth threshold must be a number."
+                        self, "Validation Error", "Bandwidth threshold must be a positive number."
                     )
                     return None
             elif rt == "port":
