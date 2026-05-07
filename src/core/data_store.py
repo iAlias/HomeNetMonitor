@@ -11,7 +11,7 @@ from typing import Optional
 
 from src.models.connection import Connection
 from src.models.device import Device
-from src.utils.constants import APPDATA_DIR, DB_PATH, DB_RETENTION_DAYS
+from src.utils.constants import APPDATA_DIR, DB_PATH, DB_RETENTION_DAYS, MAX_CONNECTIONS_MEMORY
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +157,9 @@ class DataStore:
     def update_connection(self, conn: Connection) -> None:
         """Merge a new connection observation into the in-memory store.
 
+        When the number of tracked connections reaches ``MAX_CONNECTIONS_MEMORY``
+        the entry with the oldest ``last_seen`` is evicted to bound memory use.
+
         Args:
             conn: Connection object to merge/upsert.
         """
@@ -171,6 +174,12 @@ class DataStore:
                 existing.isp = conn.isp or existing.isp
                 existing.flagged = existing.flagged or conn.flagged
             else:
+                if len(self._connections) >= MAX_CONNECTIONS_MEMORY:
+                    # Evict the entry with the oldest last_seen timestamp
+                    oldest_key = min(
+                        self._connections, key=lambda k: self._connections[k].last_seen
+                    )
+                    del self._connections[oldest_key]
                 self._connections[key] = conn
             self._pending_connections.append(conn)
 
@@ -202,15 +211,14 @@ class DataStore:
                 for c in self._pending_connections
             ]
             self._pending_connections.clear()
-
-        self._conn.executemany(
-            """INSERT INTO connections_log
-               (src_ip, dst_ip, dst_host, port, protocol, service, bytes,
-                country, city, isp, first_seen, last_seen, flagged)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            rows,
-        )
-        self._conn.commit()
+            self._conn.executemany(
+                """INSERT INTO connections_log
+                   (src_ip, dst_ip, dst_host, port, protocol, service, bytes,
+                    country, city, isp, first_seen, last_seen, flagged)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                rows,
+            )
+            self._conn.commit()
         logger.debug("Flushed %d connection rows to DB", len(rows))
 
     # ------------------------------------------------------------------
@@ -251,6 +259,11 @@ class DataStore:
     def get_bandwidth_today(self) -> tuple[int, int]:
         """Return total bytes (in, out) recorded since midnight today.
 
+        Uses the in-memory bandwidth samples which accumulate throughout
+        the session.  Does not query the DB to avoid double-counting bytes
+        that are already present in both the in-memory lists and
+        ``connections_log``.
+
         Returns:
             Tuple ``(bytes_in, bytes_out)``.
         """
@@ -258,19 +271,7 @@ class DataStore:
         with self._lock:
             total_in = sum(b for ts, b in self._bandwidth_in if ts >= midnight)
             total_out = sum(b for ts, b in self._bandwidth_out if ts >= midnight)
-
-        # Also query DB for historical data from today
-        try:
-            row = self._conn.execute(
-                """SELECT SUM(bytes) FROM connections_log
-                   WHERE first_seen >= ?""",
-                (datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat(),),
-            ).fetchone()
-            db_bytes = row[0] or 0
-        except Exception:
-            db_bytes = 0
-
-        return total_in, total_out + db_bytes
+        return total_in, total_out
 
     # ------------------------------------------------------------------
     # Geo cache
@@ -285,9 +286,10 @@ class DataStore:
         Returns:
             Dict with keys ``country``, ``city``, ``isp``, or ``None``.
         """
-        row = self._conn.execute(
-            "SELECT country, city, isp FROM geo_cache WHERE ip=?", (ip,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT country, city, isp FROM geo_cache WHERE ip=?", (ip,)
+            ).fetchone()
         return dict(row) if row else None
 
     def set_geo_cached(self, ip: str, country: str, city: str, isp: str) -> None:
@@ -299,15 +301,16 @@ class DataStore:
             city: City name.
             isp: ISP/organisation name.
         """
-        self._conn.execute(
-            """INSERT INTO geo_cache (ip, country, city, isp, ts)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(ip) DO UPDATE SET
-                   country=excluded.country, city=excluded.city,
-                   isp=excluded.isp, ts=excluded.ts""",
-            (ip, country, city, isp, int(time.time())),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """INSERT INTO geo_cache (ip, country, city, isp, ts)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(ip) DO UPDATE SET
+                       country=excluded.country, city=excluded.city,
+                       isp=excluded.isp, ts=excluded.ts""",
+                (ip, country, city, isp, int(time.time())),
+            )
+            self._conn.commit()
 
     # ------------------------------------------------------------------
     # Alert rules
@@ -400,11 +403,12 @@ class DataStore:
         Returns:
             List of alert record dicts, newest first.
         """
-        rows = self._conn.execute(
-            "SELECT id, ts, rule_name, device_ip, detail FROM alerts_log "
-            "ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, ts, rule_name, device_ip, detail FROM alerts_log "
+                "ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         return [dict(r) for r in rows]
 
     # ------------------------------------------------------------------
@@ -418,13 +422,14 @@ class DataStore:
             retention_days: Records older than this will be deleted.
         """
         cutoff = (datetime.now() - timedelta(days=retention_days)).isoformat()
-        self._conn.execute(
-            "DELETE FROM connections_log WHERE last_seen < ?", (cutoff,)
-        )
-        self._conn.execute(
-            "DELETE FROM alerts_log WHERE ts < ?", (cutoff,)
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM connections_log WHERE last_seen < ?", (cutoff,)
+            )
+            self._conn.execute(
+                "DELETE FROM alerts_log WHERE ts < ?", (cutoff,)
+            )
+            self._conn.commit()
         logger.info("Purged data older than %s", cutoff)
 
     def close(self) -> None:

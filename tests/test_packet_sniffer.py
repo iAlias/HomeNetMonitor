@@ -67,20 +67,23 @@ def tmp_store(tmp_path: Path) -> DataStore:
 class TestPacketSniffer:
     """Tests for PacketSniffer._process() logic."""
 
-    def setup_method(self, tmp_path=None) -> None:
-        """Set up a sniffer with a mock data store."""
+    def setup_method(self) -> None:
+        """Set up a sniffer with a real (temp) data store."""
         import tempfile
 
-        self.tmp = tempfile.mkdtemp()
-        self.store = DataStore(db_path=Path(self.tmp) / "test.db")
+        self._tmpdir = tempfile.mkdtemp()
+        self.store = DataStore(db_path=Path(self._tmpdir) / "test.db")
         self.sniffer = PacketSniffer(self.store, interface="eth0")
         self.sniffer.packet_received = MagicMock()
         self.sniffer.error_occurred = MagicMock()
         self.sniffer._local_prefix = "192.168.1."
 
     def teardown_method(self) -> None:
-        """Close store."""
+        """Close the store and remove the temp directory."""
+        import shutil
+
         self.store.close()
+        shutil.rmtree(self._tmpdir, ignore_errors=True)
 
     def test_non_ip_packet_ignored(self) -> None:
         """A packet without an IP layer should be silently ignored."""

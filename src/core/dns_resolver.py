@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import socket
+import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from typing import Optional
 
@@ -16,7 +17,9 @@ class DnsResolver:
 
     Results are cached in a dict to avoid repeated lookups.  The cache
     never exceeds ``max_cache_size`` entries (oldest entries are evicted
-    when the limit is reached).
+    when the limit is reached).  All cache accesses are protected by an
+    internal :class:`threading.Lock` so the resolver is safe to use from
+    multiple threads simultaneously.
 
     Args:
         max_workers: Number of threads in the pool.
@@ -33,6 +36,7 @@ class DnsResolver:
         """Initialise the resolver."""
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="dns")
         self._cache: dict[str, str] = {}
+        self._cache_lock = threading.Lock()
         self._timeout = timeout
         self._max_cache_size = max_cache_size
 
@@ -52,8 +56,9 @@ class DnsResolver:
         Returns:
             Resolved hostname, or *ip* itself if resolution fails.
         """
-        if ip in self._cache:
-            return self._cache[ip]
+        with self._cache_lock:
+            if ip in self._cache:
+                return self._cache[ip]
 
         hostname = self._do_lookup(ip)
         self._store(ip, hostname)
@@ -68,8 +73,11 @@ class DnsResolver:
             ip: IPv4 or IPv6 address string.
             callback: Callable ``(ip: str, hostname: str) -> None``.
         """
-        if ip in self._cache:
-            callback(ip, self._cache[ip])
+        with self._cache_lock:
+            cached = self._cache.get(ip)
+
+        if cached is not None:
+            callback(ip, cached)
             return
 
         def _task() -> None:
@@ -91,7 +99,8 @@ class DnsResolver:
         Returns:
             Cached hostname or ``None``.
         """
-        return self._cache.get(ip)
+        with self._cache_lock:
+            return self._cache.get(ip)
 
     def invalidate(self, ip: str) -> None:
         """Remove *ip* from the cache.
@@ -99,7 +108,8 @@ class DnsResolver:
         Args:
             ip: IP address to remove.
         """
-        self._cache.pop(ip, None)
+        with self._cache_lock:
+            self._cache.pop(ip, None)
 
     def shutdown(self) -> None:
         """Shut down the thread pool, waiting for pending lookups."""
@@ -149,11 +159,12 @@ class DnsResolver:
             ip: IP address key.
             hostname: Hostname value.
         """
-        if len(self._cache) >= self._max_cache_size:
-            # Evict the oldest entry (first inserted key in CPython 3.7+)
-            try:
-                oldest_key = next(iter(self._cache))
-                del self._cache[oldest_key]
-            except StopIteration:
-                pass
-        self._cache[ip] = hostname
+        with self._cache_lock:
+            if len(self._cache) >= self._max_cache_size:
+                # Evict the oldest entry (first inserted key in CPython 3.7+)
+                try:
+                    oldest_key = next(iter(self._cache))
+                    del self._cache[oldest_key]
+                except StopIteration:
+                    pass
+            self._cache[ip] = hostname

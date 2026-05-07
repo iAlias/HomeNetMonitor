@@ -183,18 +183,24 @@ class PacketSniffer(QThread):
 
     @staticmethod
     def _detect_local_prefix() -> Optional[str]:
-        """Return the first three octets of the local IP address.
+        """Return the first three octets of the outbound local IP address.
+
+        Uses a UDP connect to an external address (no data is actually sent)
+        to determine which interface the OS would use for outbound traffic.
+        This avoids the common pitfall of ``socket.gethostbyname(hostname)``
+        resolving to a loopback address on Linux.
 
         Returns:
             String such as ``"192.168.1."`` or ``None``.
         """
-        try:
-            import socket
+        import socket
 
-            hostname = socket.gethostname()
-            ip = socket.gethostbyname(hostname)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
             parts = ip.split(".")
-            if len(parts) == 4:
+            if len(parts) == 4 and not ip.startswith("127."):
                 return f"{parts[0]}.{parts[1]}.{parts[2]}."
         except Exception:  # noqa: BLE001
             pass
