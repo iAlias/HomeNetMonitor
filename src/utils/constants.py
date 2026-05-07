@@ -61,18 +61,31 @@ QTabBar::tab {{
     color: {TEXT_COLOR};
     padding: 8px 20px;
     border: none;
+    border-bottom: 2px solid transparent;
 }}
 QTabBar::tab:selected {{
-    background: {ACCENT};
-    color: #000000;
+    background: #0f3460;
+    color: {ACCENT};
     font-weight: bold;
+    border-bottom: 2px solid {ACCENT};
+}}
+QTabBar::tab:hover:!selected {{
+    background: #1e2f5a;
 }}
 QTableWidget {{
     background-color: #16213e;
     alternate-background-color: {DARK_BG};
     color: {TEXT_COLOR};
     gridline-color: #2a2a4a;
+    border: 1px solid #2a2a4a;
+    border-radius: 4px;
+}}
+QTableWidget::item {{
+    padding: 5px 8px;
     border: none;
+}}
+QTableWidget::item:hover {{
+    background-color: rgba(0, 180, 216, 0.10);
 }}
 QTableWidget::item:selected {{
     background-color: {ACCENT};
@@ -143,6 +156,19 @@ QScrollBar:vertical {{
 QScrollBar::handle:vertical {{
     background: {ACCENT};
     border-radius: 5px;
+    min-height: 20px;
+}}
+QScrollBar:horizontal {{
+    background: #16213e;
+    height: 10px;
+}}
+QScrollBar::handle:horizontal {{
+    background: {ACCENT};
+    border-radius: 5px;
+    min-width: 20px;
+}}
+QScrollBar::add-line, QScrollBar::sub-line {{
+    width: 0; height: 0;
 }}
 QLabel {{
     color: {TEXT_COLOR};

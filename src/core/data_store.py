@@ -48,8 +48,9 @@ class DataStore:
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
 
-        # Load persisted rules from DB
+        # Load persisted data from DB
         self._load_alert_rules()
+        self._load_devices()
         logger.info("DataStore initialised at %s", db_path)
 
     # ------------------------------------------------------------------
@@ -322,6 +323,31 @@ class DataStore:
             "SELECT id, rule_type, name, params, enabled FROM alert_rules"
         ).fetchall()
         self._alert_rules = [dict(r) for r in rows]
+
+    def _load_devices(self) -> None:
+        """Load previously discovered devices from the database into memory.
+
+        Devices are restored with ``status="Offline"`` so that the scanner
+        can promote them back to Online on its next ARP sweep.
+        """
+        rows = self._conn.execute(
+            "SELECT mac, ip, hostname, vendor, status, first_seen, last_seen FROM devices"
+        ).fetchall()
+        for row in rows:
+            try:
+                device = Device(
+                    ip=row["ip"] or "",
+                    mac=row["mac"],
+                    hostname=row["hostname"] or "",
+                    vendor=row["vendor"] or "",
+                    status="Offline",  # scanner will update to Online when seen
+                    first_seen=datetime.fromisoformat(row["first_seen"]),
+                    last_seen=datetime.fromisoformat(row["last_seen"]),
+                )
+                self._devices[device.mac] = device
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Could not restore device %s from DB: %s", row["mac"], exc)
+        logger.info("Restored %d device(s) from database", len(self._devices))
 
     def get_alert_rules(self) -> list[dict]:
         """Return all alert rules."""
