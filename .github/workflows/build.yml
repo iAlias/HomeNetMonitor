@@ -3,6 +3,8 @@ name: Build EXE
 on:
   push:
     branches: [main]
+    tags:
+      - "v*"
   release:
     types: [created]
 
@@ -10,7 +12,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +32,13 @@ jobs:
         with:
           name: HomeNetMonitor-exe
           path: dist/HomeNetMonitor.exe
+
+      - name: Create GitHub Release on tag push
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/HomeNetMonitor.exe
+          generate_release_notes: true
 
       - name: Upload to Release
         if: github.event_name == 'release'

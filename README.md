@@ -11,6 +11,7 @@
 
 ## Indice
 
+- [Avvio rapido (senza terminale)](#avvio-rapido-senza-terminale)
 - [Funzionalità](#funzionalità)
 - [Requisiti di sistema](#requisiti-di-sistema)
 - [Installazione](#installazione)
@@ -29,6 +30,56 @@
 - [Domande frequenti](#domande-frequenti)
 - [Contribuire](#contribuire)
 - [Licenza](#licenza)
+  - [Dashboard](#-dashboard)
+  - [Dispositivi](#-dispositivi)
+  - [Connessioni](#-connessioni)
+  - [Alert](#-alert)
+  - [Impostazioni](#️-impostazioni)
+  - [Esportazione CSV](#esportazione-csv)
+- [Compilare il file EXE](#compilare-il-file-exe)
+- [Eseguire i test](#eseguire-i-test)
+- [Struttura del progetto](#struttura-del-progetto)
+- [Flusso dei dati](#flusso-dei-dati)
+- [Domande frequenti](#domande-frequenti)
+- [Contribuire](#contribuire)
+- [Licenza](#licenza)
+
+---
+
+## Avvio rapido (senza terminale)
+
+Non vuoi usare il terminale? Hai due opzioni:
+
+### Opzione A — Scarica l'eseguibile già pronto
+
+1. Vai alla pagina [**Releases**](https://github.com/iAlias/HomeNetMonitor/releases/latest) del repository.
+2. Scarica `HomeNetMonitor.exe` dalla sezione *Assets*.
+3. **Installa [Npcap](https://npcap.com/#download)** (seleziona *"Install Npcap in WinPcap API-compatible Mode"*).
+4. Fai doppio clic su `HomeNetMonitor.exe`.  
+   Windows mostrerà la finestra UAC per richiedere i privilegi di amministratore: clicca **Sì**.  
+   La GUI si apre direttamente, senza nessun terminale.
+
+> L'EXE viene compilato automaticamente dalla CI ad ogni release. Non richiede Python installato.
+
+---
+
+### Opzione B — Lancia dalla cartella sorgente con un doppio clic
+
+Se hai clonato il repository e installato Python, puoi usare gli script nella cartella `scripts/`:
+
+| File | Descrizione |
+|---|---|
+| `scripts/launch.vbs` | **Consigliato** — avvia l'app senza alcuna finestra di terminale visibile |
+| `scripts/launch.bat` | Alternativa — apre un terminale temporaneo solo il tempo di avviare la GUI |
+
+**Passi:**
+
+1. Installa Python 3.11+ e assicurati che sia nel PATH.
+2. Installa [Npcap](https://npcap.com/#download).
+3. Fai doppio clic su `scripts/launch.vbs`.  
+   Al primo avvio vengono creati automaticamente il virtual environment e le dipendenze.  
+   Verrà mostrata la finestra UAC — clicca **Sì**.  
+   La GUI si apre.
 
 ---
 
