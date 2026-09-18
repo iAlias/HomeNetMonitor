@@ -1,392 +1,404 @@
 # HomeNetMonitor
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Python](https://img.shields.io/badge/Python-3.11+-green.svg)
-![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue.svg)
-![Build EXE](https://github.com/iAlias/HomeNetMonitor/actions/workflows/build.yml/badge.svg)
+**A desktop home‑network monitor for Windows — live traffic graphs, device discovery and rule‑based alerts.**
 
-> **Strumento desktop per il monitoraggio della rete domestica su Windows** — monitora il traffico di rete in tempo reale, scopre i dispositivi connessi e avvisa quando vengono rilevate attività sospette.
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11+-green.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue.svg)](#system-requirements)
+[![Build EXE](https://github.com/iAlias/HomeNetMonitor/actions/workflows/build.yml/badge.svg)](https://github.com/iAlias/HomeNetMonitor/actions/workflows/build.yml)
 
----
+🇮🇹 [Leggi in italiano](README.it.md)
 
-## Indice
-
-- [Avvio rapido (senza terminale)](#avvio-rapido-senza-terminale)
-- [Funzionalità](#funzionalità)
-- [Requisiti di sistema](#requisiti-di-sistema)
-- [Installazione](#installazione)
-- [Avvio dell'applicazione](#avvio-dellapplicazione)
-- [Guida all'uso](#guida-alluso)
-  - [Dashboard](#-dashboard)
-  - [Dispositivi](#-dispositivi)
-  - [Connessioni](#-connessioni)
-  - [Alert](#-alert)
-  - [Impostazioni](#️-impostazioni)
-  - [Esportazione CSV](#esportazione-csv)
-- [Compilare il file EXE](#compilare-il-file-exe)
-- [Eseguire i test](#eseguire-i-test)
-- [Struttura del progetto](#struttura-del-progetto)
-- [Flusso dei dati](#flusso-dei-dati)
-- [Domande frequenti](#domande-frequenti)
-- [Contribuire](#contribuire)
-- [Licenza](#licenza)
+HomeNetMonitor is a PyQt6 desktop application that watches the traffic on your
+home network in real time, discovers the devices connected to it, and raises
+alerts when something looks suspicious — a new device joining, a burst of
+bandwidth, traffic to a specific IP, or activity on a specific port. All the
+data — connections, devices, alerts and the geolocation cache — is kept
+locally in a SQLite database; nothing is sent anywhere except IP
+geolocation lookups against the free [ip-api.com](http://ip-api.com) service.
 
 ---
 
-## Avvio rapido (senza terminale)
+## Contents
 
-Non vuoi usare il terminale? Hai due opzioni:
-
-### Opzione A — Scarica l'eseguibile già pronto
-
-1. Vai alla pagina [**Releases**](https://github.com/iAlias/HomeNetMonitor/releases/latest) del repository.
-2. Scarica `HomeNetMonitor.exe` dalla sezione *Assets*.
-3. **Installa [Npcap](https://npcap.com/#download)** (seleziona *"Install Npcap in WinPcap API-compatible Mode"*).
-4. Fai doppio clic su `HomeNetMonitor.exe`.  
-   Windows mostrerà la finestra UAC per richiedere i privilegi di amministratore: clicca **Sì**.  
-   La GUI si apre direttamente, senza nessun terminale.
-
-> L'EXE viene compilato automaticamente dalla CI ad ogni release. Non richiede Python installato.
+- [Quick start (no terminal required)](#quick-start-no-terminal-required)
+- [Features](#features)
+- [System requirements](#system-requirements)
+- [Installation](#installation)
+- [Running the application](#running-the-application)
+- [User guide](#user-guide)
+  - [Dashboard](#dashboard)
+  - [Devices](#devices)
+  - [Connections](#connections)
+  - [Alerts](#alerts)
+  - [Settings](#settings)
+  - [CSV export](#csv-export)
+- [Building the EXE](#building-the-exe)
+- [Running the tests](#running-the-tests)
+- [Project structure](#project-structure)
+- [Data flow](#data-flow)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-### Opzione B — Lancia dalla cartella sorgente con un doppio clic
+## Quick start (no terminal required)
 
-Se hai clonato il repository e installato Python, puoi usare gli script nella cartella `scripts/`:
+Don't want to use a terminal? You have two options.
 
-| File | Descrizione |
+### Option A — Download the ready‑made executable
+
+1. Go to the [**Releases**](https://github.com/iAlias/HomeNetMonitor/releases/latest) page of the repository.
+2. Download `HomeNetMonitor.exe` from the *Assets* section.
+3. **Install [Npcap](https://npcap.com/#download)** (select *"Install Npcap in WinPcap API-compatible Mode"*).
+4. Double‑click `HomeNetMonitor.exe`.
+   Windows will show the UAC prompt asking for administrator privileges: click **Yes**.
+   The GUI opens directly, with no terminal window at all.
+
+> The EXE is built automatically by CI on every release. It does not require Python to be installed.
+
+---
+
+### Option B — Launch from the source folder with a double click
+
+If you cloned the repository and have Python installed, you can use the
+scripts in the `scripts/` folder:
+
+| File | Description |
 |---|---|
-| `scripts/launch.vbs` | **Consigliato** — avvia l'app senza alcuna finestra di terminale visibile |
-| `scripts/launch.bat` | Alternativa — apre un terminale temporaneo solo il tempo di avviare la GUI |
+| `scripts/launch.vbs` | **Recommended** — starts the app with no visible terminal window |
+| `scripts/launch.bat` | Alternative — opens a temporary terminal just long enough to start the GUI |
 
-**Passi:**
+**Steps:**
 
-1. Installa Python 3.11+ e assicurati che sia nel PATH.
-2. Installa [Npcap](https://npcap.com/#download).
-3. Fai doppio clic su `scripts/launch.vbs`.  
-   Al primo avvio vengono creati automaticamente il virtual environment e le dipendenze.  
-   Verrà mostrata la finestra UAC — clicca **Sì**.  
-   La GUI si apre.
+1. Install Python 3.11+ and make sure it's on the PATH.
+2. Install [Npcap](https://npcap.com/#download).
+3. Double‑click `scripts/launch.vbs`.
+   On first run, the virtual environment and dependencies are created automatically.
+   The UAC prompt will appear — click **Yes**.
+   The GUI opens.
 
 ---
 
-## Funzionalità
+## Features
 
-| Funzione | Descrizione |
+| Feature | Description |
 |---|---|
-| 📊 **Dashboard live** | Grafico bytes/sec (ultimi 60 s), KPI (dispositivi online, connessioni attive, banda), top 5 destinazioni con bandiere nazionali |
-| 💻 **Rilevamento dispositivi** | Scansione ARP del sottorete locale ogni 30 s; tabella con IP, MAC, produttore, hostname, stato online/offline |
-| 🔗 **Connessioni attive** | Tabella in tempo reale di tutti i flussi di rete con codifica colori (verde = sicuro, giallo = sconosciuto, rosso = segnalato) |
-| 🔔 **Regole di alert** | Crea avvisi personalizzati su: nuovo dispositivo, soglia di banda, comunicazione verso un IP specifico, attività su una porta |
-| 🌐 **Geolocalizzazione** | Risoluzione batch degli IP tramite ip-api.com (gratuito, senza API key) |
-| 🔍 **Reverse DNS** | Risoluzione asincrona degli hostname con cache interna thread-safe |
-| 🏭 **Lookup produttore** | Identificazione del produttore dal MAC (OUI) tramite database offline |
-| 💾 **Persistenza SQLite** | Log connessioni, log alert, cache geo, regole di alert salvati in locale |
-| 🛡 **Avvio senza privilegi** | La GUI si avvia anche senza permessi da amministratore (packet capture disabilitato, funzioni di sola lettura disponibili) |
+| 📊 **Live dashboard** | Bytes/sec graph (last 60 s), KPI cards (online devices, active connections, bandwidth), top 5 destinations with country flags |
+| 💻 **Device discovery** | ARP scan of the local subnet every 30 s; table with IP, MAC, vendor, hostname, online/offline status |
+| 🔗 **Active connections** | Real‑time table of all captured network flows with color coding (green = safe, yellow = unknown, red = flagged) |
+| 🔔 **Alert rules** | Custom alerts for: new device, bandwidth threshold, communication with a specific IP, activity on a port |
+| 🌐 **Geolocation** | Batch IP resolution via ip-api.com (free, no API key required) |
+| 🔍 **Reverse DNS** | Asynchronous hostname resolution with a thread‑safe internal cache |
+| 🏭 **Vendor lookup** | Manufacturer identification from the MAC address (OUI) via an offline database |
+| 💾 **SQLite persistence** | Connection log, alert log, geolocation cache and alert rules stored locally |
+| 🛡 **Unprivileged startup** | The GUI starts even without administrator rights (packet capture disabled, read‑only features still available) |
 
 ---
 
-## Requisiti di sistema
+## System requirements
 
-- **Sistema operativo**: Windows 10 o Windows 11 (64-bit)
-- **Python**: versione 3.11 o superiore ([scarica qui](https://www.python.org/downloads/))
-- **[Npcap](https://npcap.com/#download)**: libreria per la cattura di pacchetti su Windows — **obbligatoria** per PacketSniffer e ARP scan. Da installare prima di avviare l'applicazione. Durante l'installazione di Npcap, selezionare l'opzione *"Install Npcap in WinPcap API-compatible Mode"*.
-- **Privilegi di amministratore**: necessari per la cattura raw dei pacchetti e la scansione ARP.
+- **Operating system**: Windows 10 or Windows 11 (64‑bit)
+- **Python**: version 3.11 or later ([download here](https://www.python.org/downloads/))
+- **[Npcap](https://npcap.com/#download)**: packet‑capture library for Windows — **required** for the packet sniffer and ARP scan. Install it before running the application, choosing the *"Install Npcap in WinPcap API-compatible Mode"* option.
+- **Administrator privileges**: required for raw packet capture and ARP scanning.
 
 ---
 
-## Installazione
+## Installation
 
-### 1. Clona il repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/iAlias/HomeNetMonitor.git
 cd HomeNetMonitor
 ```
 
-### 2. (Consigliato) Crea un ambiente virtuale
+### 2. (Recommended) Create a virtual environment
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-### 3. Installa le dipendenze
+### 3. Install the dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Le principali dipendenze sono:
+Main dependencies:
 
-| Pacchetto | Versione minima | Scopo |
+| Package | Minimum version | Purpose |
 |---|---|---|
-| `PyQt6` | >= 6.6.0 | Framework GUI |
-| `pyqtgraph` | >= 0.13.3 | Grafico traffico live |
-| `scapy` | >= 2.5.0 | Cattura pacchetti e ARP scan |
-| `psutil` | >= 5.9.8 | Info sulle interfacce di rete |
-| `netifaces` | >= 0.11.0 | Rilevamento gateway e subnet |
-| `requests` | >= 2.31.0 | Chiamate API di geolocalizzazione |
+| `PyQt6` | >= 6.6.0 | GUI framework |
+| `pyqtgraph` | >= 0.13.3 | Live traffic graph |
+| `scapy` | >= 2.5.0 | Packet capture and ARP scan |
+| `psutil` | >= 5.9.8 | Network interface information |
+| `netifaces2` | >= 0.0.1 | Gateway and subnet detection |
+| `requests` | >= 2.31.0 | Geolocation API calls |
+| `pyinstaller` | >= 6.4.0 | Standalone EXE packaging |
 
 ---
 
-## Avvio dell'applicazione
+## Running the application
 
-> **Avvia sempre il terminale o il prompt dei comandi come Amministratore** per abilitare la cattura dei pacchetti e la scansione ARP.
+> **Always start the terminal or command prompt as Administrator** to enable packet capture and ARP scanning.
 
 ```bash
-# Con l'ambiente virtuale attivato (da un prompt come Amministratore):
+# With the virtual environment activated (from an Administrator prompt):
 python src/main.py
 ```
 
-All'avvio, l'applicazione:
-1. Crea (se non esiste) la cartella dati in `%APPDATA%\HomeNetMonitor\`
-2. Inizializza il database SQLite (`data.db`) e il file di log (`app.log`)
-3. Avvia la scansione ARP e il packet sniffer in background
-4. Mostra la finestra principale
+On startup, the application:
+1. Creates (if missing) the data folder at `%APPDATA%\HomeNetMonitor\`
+2. Initializes the SQLite database (`data.db`) and the log file (`app.log`)
+3. Starts the ARP scan and the packet sniffer in the background
+4. Shows the main window
 
-Se l'applicazione non viene eseguita come amministratore, nella barra di stato comparirà il messaggio:
+If the application is not run as administrator, the status bar shows:
 
 > Not running as Administrator — packet capture and ARP scan are disabled.
 
-In questo caso la GUI è comunque utilizzabile, ma i dati non verranno aggiornati in tempo reale.
+In this case the GUI is still usable, but the data will not be updated in real time.
 
 ---
 
-## Guida all'uso
+## User guide
 
 ### Dashboard
 
-La Dashboard è la schermata principale visualizzata all'avvio. È divisa in tre sezioni:
+The Dashboard is the main screen shown at startup. It is divided into three sections.
 
-#### Selettore interfaccia
-In cima alla scheda è presente un menu a tendina per selezionare l'interfaccia di rete da monitorare. L'interfaccia attiva viene mostrata anche nella barra di stato in basso a sinistra.
+#### Interface selector
+At the top of the tab there is a dropdown to select the network interface to monitor. The active interface is also shown in the status bar at the bottom left.
 
-#### Schede KPI (Key Performance Indicators)
-Quattro riquadri mostrano in tempo reale:
-- **Devices Online** — numero di dispositivi rilevati come attivi sulla rete
-- **Active Connections** — numero di flussi di rete attivi in memoria
-- **Bandwidth Today (giù)** — byte totali in entrata dall'inizio della giornata (mezzanotte)
-- **Bandwidth Today (su)** — byte totali in uscita dall'inizio della giornata
+#### KPI cards (Key Performance Indicators)
+Four panels show, in real time:
+- **Devices Online** — number of devices currently detected as active on the network
+- **Active Connections** — number of active network flows in memory
+- **Bandwidth Today (down)** — total bytes received since the start of the day (midnight)
+- **Bandwidth Today (up)** — total bytes sent since the start of the day
 
-I valori si aggiornano ogni 2 secondi.
+Values refresh every 2 seconds.
 
-#### Grafico traffico live
-Il grafico mostra i byte al secondo degli ultimi 60 secondi:
-- **Linea blu** — traffico in download
-- **Linea rossa** — traffico in upload
+#### Live traffic graph
+The graph shows bytes per second for the last 60 seconds:
+- **Blue line** — download traffic
+- **Red line** — upload traffic
 
-> Il grafico richiede `pyqtgraph`. Se non installato, verrà mostrato un messaggio informativo.
+> The graph requires `pyqtgraph`. If it is not installed, an informational message is shown instead.
 
-#### Top 5 destinazioni
-Tabella con le 5 destinazioni che hanno ricevuto più bytes nella sessione corrente, con hostname, paese (con bandiera emoji) e volume di dati.
-
----
-
-### Dispositivi
-
-La scheda **Devices** mostra tutti i dispositivi scoperti tramite scansione ARP.
-
-#### Tabella dispositivi
-
-| Colonna | Contenuto |
-|---|---|
-| IP Address | Indirizzo IPv4 corrente del dispositivo |
-| MAC Address | Indirizzo MAC fisico |
-| Vendor | Produttore rilevato dal MAC (OUI) |
-| Hostname | Nome host risolto (se disponibile) |
-| Status | **Online** (verde) / **Offline** (rosso) |
-| First Seen | Data e ora della prima rilevazione |
-| Last Seen | Data e ora dell'ultima risposta ARP |
-
-Un dispositivo viene marcato **Offline** se non risponde alle scansioni ARP per più di 90 secondi.
-
-#### Barra di ricerca
-Digita nella barra in alto per filtrare la lista per IP, MAC, hostname o produttore. Il filtro si applica in tempo reale.
-
-#### Menu contestuale (tasto destro)
-Fai clic destro su un dispositivo per accedere a tre azioni:
-
-- **Copy IP** — copia l'indirizzo IP nella clipboard
-- **Resolve Hostname** — esegue una risoluzione DNS inversa e salva il risultato nel record del dispositivo
-- **Block Device (Firewall)** — aggiunge una regola al Windows Firewall per bloccare il traffico in uscita verso quel dispositivo (richiede privilegi da amministratore)
-
-#### Clic su una riga
-Facendo clic su un dispositivo si viene automaticamente reindirizzati alla scheda **Connections** filtrata per quell'IP sorgente.
+#### Top 5 destinations
+Table with the 5 destinations that received the most bytes in the current session, with hostname, country (with flag emoji) and data volume.
 
 ---
 
-### Connessioni
+### Devices
 
-La scheda **Connections** mostra in tempo reale tutti i flussi di rete catturati.
+The **Devices** tab shows all the devices discovered through the ARP scan.
 
-#### Tabella connessioni
+#### Device table
 
-| Colonna | Contenuto |
+| Column | Content |
 |---|---|
-| Source IP | IP sorgente (dispositivo locale) |
-| Destination IP | IP destinazione |
-| Destination Host | Hostname del destinatario (se risolto via DNS) |
-| Port | Porta di destinazione |
+| IP Address | Current IPv4 address of the device |
+| MAC Address | Physical MAC address |
+| Vendor | Manufacturer identified from the MAC (OUI) |
+| Hostname | Resolved host name (if available) |
+| Status | **Online** (green) / **Offline** (red) |
+| First Seen | Date and time of the first detection |
+| Last Seen | Date and time of the last ARP response |
+
+A device is marked **Offline** if it does not respond to ARP scans for more than 90 seconds.
+
+#### Search bar
+Type in the top bar to filter the list by IP, MAC, hostname or vendor. The filter applies in real time.
+
+#### Context menu (right click)
+Right‑click a device to access three actions:
+
+- **Copy IP** — copies the IP address to the clipboard
+- **Resolve Hostname** — performs a reverse DNS lookup and saves the result in the device record
+- **Block Device (Firewall)** — adds a rule to the Windows Firewall to block outbound traffic to that device (requires administrator privileges)
+
+#### Clicking a row
+Clicking a device automatically switches to the **Connections** tab, filtered on that source IP.
+
+---
+
+### Connections
+
+The **Connections** tab shows, in real time, all the network flows captured.
+
+#### Connections table
+
+| Column | Content |
+|---|---|
+| Source IP | Source IP (local device) |
+| Destination IP | Destination IP |
+| Destination Host | Hostname of the destination (if resolved via DNS) |
+| Port | Destination port |
 | Protocol | TCP / UDP / Other |
-| Service | Nome del servizio (es. HTTPS, DNS, SSH) |
-| Bytes | Byte totali trasferiti in questo flusso |
-| Country | Paese di destinazione (da geolocalizzazione) |
-| Duration | Durata del flusso dall'inizio |
+| Service | Service name (e.g. HTTPS, DNS, SSH) |
+| Bytes | Total bytes transferred on this flow |
+| Country | Destination country (from geolocation) |
+| Duration | Duration of the flow since it started |
 
-#### Codifica colori
+#### Color coding
 
-| Colore | Significato |
+| Color | Meaning |
 |---|---|
-| Verde | Destinazione nota come sicura (Google, Cloudflare, Microsoft Azure, AWS) |
-| Giallo | Destinazione sconosciuta (geolocalizzazione non ancora risolta) |
-| Rosso | Connessione segnalata da una regola di alert |
+| Green | Destination known to be safe (Google, Cloudflare, Microsoft Azure, AWS) |
+| Yellow | Unknown destination (geolocation not resolved yet) |
+| Red | Connection flagged by an alert rule |
 
-#### Filtri
-- **Testo libero** — filtra per IP sorgente, IP destinazione, hostname o numero di porta
-- **Protocol** — filtra per TCP, UDP, Other o tutti
-- **Country** — filtra per nome del paese (es. "Italy", "United States")
+#### Filters
+- **Free text** — filters by source IP, destination IP, hostname or port number
+- **Protocol** — filters by TCP, UDP, Other or all
+- **Country** — filters by country name (e.g. "Italy", "United States")
 
 ---
 
-### Alert
+### Alerts
 
-La scheda **Alerts** permette di configurare regole di monitoraggio e visualizzare lo storico degli avvisi.
+The **Alerts** tab lets you configure monitoring rules and view the alert history.
 
-#### Regole di alert disponibili
+#### Available alert rule types
 
-| Tipo | Descrizione | Parametri |
+| Type | Description | Parameters |
 |---|---|---|
-| **New Unknown Device** | Scatta quando appare un nuovo dispositivo non visto in precedenza | Nessuno |
-| **Bandwidth Threshold** | Scatta quando un flusso supera la soglia in MB | Device IP (o "any"), soglia in MB |
-| **IP Communication** | Scatta quando un dispositivo comunica con un IP specifico | Source IP (o "any"), IP destinazione |
-| **Port Activity** | Scatta quando viene usata una porta specifica (es. 4444, 9050) | Device IP (o "any"), numero porta |
+| **New Unknown Device** | Fires when a device not seen before appears | None |
+| **Bandwidth Threshold** | Fires when a flow exceeds the threshold in MB | Device IP (or "any"), threshold in MB |
+| **IP Communication** | Fires when a device communicates with a specific IP | Source IP (or "any"), destination IP |
+| **Port Activity** | Fires when a specific port is used (e.g. 4444, 9050) | Device IP (or "any"), port number |
 
-> Gli alert sono soggetti a un **cooldown di 60 secondi** per coppia (regola, dispositivo), per evitare lo spam nel log.
+> Alerts are subject to a **60‑second cooldown** per (rule, device) pair, to avoid flooding the log.
 
-#### Aggiungere una regola
+#### Adding a rule
 
-1. Clicca il pulsante **Add Rule**
-2. Inserisci un nome descrittivo nel campo *Rule Name*
-3. Scegli il tipo di regola dal menu a tendina *Rule Type*
-4. Compila i parametri richiesti (i campi cambiano in base al tipo selezionato)
-5. Clicca **OK** per salvare
+1. Click **Add Rule**
+2. Enter a descriptive name in the *Rule Name* field
+3. Choose the rule type from the *Rule Type* dropdown
+4. Fill in the required parameters (fields change depending on the selected type)
+5. Click **OK** to save
 
-I dati inseriti vengono validati prima del salvataggio: la porta deve essere un numero intero tra 1 e 65535, la soglia di banda deve essere un numero.
+Input is validated before saving: the port must be an integer between 1 and 65535, and the bandwidth threshold must be a number.
 
-#### Eliminare una regola
+#### Deleting a rule
 
-Seleziona la riga nella tabella delle regole e clicca **Delete Selected**.
+Select the row in the rules table and click **Delete Selected**.
 
-#### Log degli alert
+#### Alert log
 
-La sezione inferiore mostra lo storico degli alert scattati con:
-- **Timestamp** — data e ora dell'evento
-- **Rule** — nome della regola attivata
-- **Device IP** — indirizzo IP del dispositivo coinvolto
-- **Detail** — descrizione dettagliata dell'evento
+The lower section shows the history of triggered alerts with:
+- **Timestamp** — date and time of the event
+- **Rule** — name of the triggered rule
+- **Device IP** — IP address of the device involved
+- **Detail** — detailed description of the event
 
-Il log viene aggiornato ogni 3 secondi e mostra gli ultimi 500 eventi. Gli alert generano anche una notifica toast di Windows (se il pacchetto `win10toast` è installato) oppure un messaggio nella barra di stato.
+The log refreshes every 3 seconds and shows the last 500 events. Alerts also generate a Windows toast notification (if the `win10toast` package is installed), or otherwise a message in the status bar.
 
 ---
 
-### Impostazioni
+### Settings
 
-Apri le impostazioni dal menu **File -> Settings...**
+Open the settings from the **File -> Settings...** menu.
 
-| Impostazione | Descrizione | Valore predefinito |
+| Setting | Description | Default value |
 |---|---|---|
-| **Capture Interface** | Interfaccia di rete da monitorare | Prima disponibile |
-| **ARP Scan Interval** | Frequenza della scansione ARP in secondi (10-300 s) | 30 s |
-| **DB Retention** | Quanti giorni mantenere i dati nel database (1-365) | 7 giorni |
-| **Alert Sound** | Abilita le notifiche toast di Windows per gli alert | Attivo |
+| **Capture Interface** | Network interface to monitor | First available |
+| **ARP Scan Interval** | ARP scan frequency in seconds (10–300 s) | 30 s |
+| **DB Retention** | How many days to keep data in the database (1–365) | 7 days |
+| **Alert Sound** | Enables Windows toast notifications for alerts | On |
 
-> La modifica dell'interfaccia di cattura richiede il riavvio dell'applicazione per avere effetto.
-
----
-
-### Esportazione CSV
-
-Vai su **File -> Export CSV...** per esportare tutte le connessioni attive in un file CSV.
-
-Il file contiene le colonne: `src_ip`, `dst_ip`, `dst_host`, `port`, `protocol`, `service`, `bytes_transferred`, `country`, `city`, `isp`, `first_seen`, `last_seen`, `flagged`.
+> Changing the capture interface requires restarting the application for it to take effect.
 
 ---
 
-## Compilare il file EXE
+### CSV export
 
-Per distribuire l'applicazione come eseguibile standalone (senza richiedere Python installato):
+Go to **File -> Export CSV...** to export all active connections to a CSV file.
+
+The file contains the columns: `src_ip`, `dst_ip`, `dst_host`, `port`, `protocol`, `service`, `bytes_transferred`, `country`, `city`, `isp`, `first_seen`, `last_seen`, `flagged`.
+
+---
+
+## Building the EXE
+
+To distribute the application as a standalone executable (without requiring Python to be installed):
 
 ```bash
 pip install -r requirements.txt
 pyinstaller build.spec
 ```
 
-L'eseguibile verrà creato in `dist/HomeNetMonitor.exe`. Il file `.spec` è già configurato per:
-- Modalità *onefile* (tutto in un singolo `.exe`)
-- Richiedere automaticamente elevazione UAC all'avvio (`uac_admin=True`)
-- Includere i file di risorse (`mac_oui.json`, `icon.ico`)
+The executable is created at `dist/HomeNetMonitor.exe`. The `.spec` file is already configured for:
+- *Onefile* mode (everything in a single `.exe`)
+- Automatically requesting UAC elevation on startup (`uac_admin=True`)
+- Bundling the resource files (`mac_oui.json`, `icon.ico`)
 
 ---
 
-## Eseguire i test
+## Running the tests
 
 ```bash
 pip install pytest
 pytest tests/ -v
 ```
 
-> I test che eseguono la cattura di pacchetti tramite Scapy vengono automaticamente saltati (`pytest.skip`) se Scapy non è installato.
+> Tests that rely on packet capture via Scapy are automatically skipped (`pytest.skip`) if Scapy is not installed.
 
-Attualmente la suite comprende 24 test che coprono:
-- `DeviceScanner` — rilevamento dispositivi, gestione offline, permessi
-- `DnsResolver` — cache, timeout, async lookup, eviction
-- `PacketSniffer` — parsing pacchetti TCP/UDP, conteggio bytes
+The suite currently includes 24 tests covering:
+- `DeviceScanner` — device discovery, offline handling, permissions
+- `DnsResolver` — caching, timeouts, async lookups, eviction
+- `PacketSniffer` — TCP/UDP packet parsing, byte counting
 
 ---
 
-## Struttura del progetto
+## Project structure
 
 ```
 HomeNetMonitor/
 ├── src/
-│   ├── main.py                 <- Entry point, configurazione logging
+│   ├── main.py                 <- Entry point, logging configuration
 │   ├── ui/
-│   │   ├── main_window.py      <- QMainWindow, menu, barra stato, orchestrazione thread
-│   │   ├── dashboard_tab.py    <- Grafico live (pyqtgraph) + KPI cards
-│   │   ├── devices_tab.py      <- Tabella dispositivi ARP
-│   │   ├── connections_tab.py  <- Tabella flussi in tempo reale
-│   │   ├── alerts_tab.py       <- Editor regole + log alert
-│   │   └── settings_dialog.py  <- Dialog impostazioni
+│   │   ├── main_window.py      <- QMainWindow, menu, status bar, thread orchestration
+│   │   ├── dashboard_tab.py    <- Live graph (pyqtgraph) + KPI cards
+│   │   ├── devices_tab.py      <- ARP devices table
+│   │   ├── connections_tab.py  <- Real-time flows table
+│   │   ├── alerts_tab.py       <- Rule editor + alert log
+│   │   └── settings_dialog.py  <- Settings dialog
 │   ├── core/
-│   │   ├── packet_sniffer.py   <- Scapy sniff() in QThread -> segnali Connection
-│   │   ├── device_scanner.py   <- ARP broadcast in QThread -> segnali Device
-│   │   ├── dns_resolver.py     <- ThreadPoolExecutor reverse-DNS con cache thread-safe
-│   │   ├── geo_lookup.py       <- Batch lookup ip-api.com, cache SQLite
-│   │   └── data_store.py       <- In-memory + SQLite (dispositivi, connessioni, alert)
+│   │   ├── packet_sniffer.py   <- Scapy sniff() in a QThread -> Connection signals
+│   │   ├── device_scanner.py   <- ARP broadcast in a QThread -> Device signals
+│   │   ├── dns_resolver.py     <- ThreadPoolExecutor reverse DNS with a thread-safe cache
+│   │   ├── geo_lookup.py       <- Batch lookups against ip-api.com, SQLite cache
+│   │   └── data_store.py       <- In-memory + SQLite storage (devices, connections, alerts)
 │   ├── models/
-│   │   ├── device.py           <- Dataclass Device
-│   │   └── connection.py       <- Dataclass Connection
+│   │   ├── device.py           <- Device dataclass
+│   │   └── connection.py       <- Connection dataclass
 │   └── utils/
-│       ├── mac_vendor.py       <- OUI JSON -> nome produttore
-│       ├── formatting.py       <- Utilita di formattazione condivise (format_bytes)
-│       └── constants.py        <- Path, colori, mappa porte, tema QSS
+│       ├── mac_vendor.py       <- OUI JSON -> vendor name
+│       ├── formatting.py       <- Shared formatting utilities (format_bytes)
+│       └── constants.py        <- Paths, colors, port map, QSS theme
 ├── resources/
-│   ├── mac_oui.json            <- Database OUI incluso
-│   └── icon.ico                <- Icona applicazione
+│   ├── mac_oui.json            <- Bundled OUI database
+│   └── icon.ico                <- Application icon
 ├── tests/
-│   ├── conftest.py             <- Mock PyQt6 per test senza display
+│   ├── conftest.py             <- PyQt6 mocks for headless testing
 │   ├── test_device_scanner.py
 │   ├── test_packet_sniffer.py
 │   └── test_dns_resolver.py
-├── build.spec                  <- PyInstaller (onefile, uac_admin=True)
+├── build.spec                  <- PyInstaller spec (onefile, uac_admin=True)
 ├── requirements.txt
-└── .github/workflows/build.yml <- Build automatica .exe su push a main
+└── .github/workflows/build.yml <- Automatic .exe build on push to main
 ```
 
 ---
 
-## Flusso dei dati
+## Data flow
 
 ```
 Npcap -> scapy.sniff() -> PacketSniffer (QThread)
@@ -403,53 +415,53 @@ Npcap -> scapy.sniff() -> PacketSniffer (QThread)
               +-----------------+-----------------+
               v                 v                 v
        DashboardTab       DevicesTab        ConnectionsTab
-      (grafico + KPI)   (scanner ARP)      (tabella flussi)
+      (graph + KPIs)     (ARP scanner)      (flows table)
                                                   |
                                             AlertsTab
-                                     (valutazione regole + log)
+                                     (rule evaluation + log)
 ```
 
-**Persistenza** — i dati vengono scritti su SQLite:
-- ogni **10 secondi** (`flush_connections_to_db`)
-- ogni **ora** viene eseguita la pulizia dei dati piu vecchi del periodo di retention
+**Persistence** — data is written to SQLite:
+- every **10 seconds** (`flush_connections_to_db`)
+- every **hour**, data older than the retention period is purged
 
 ---
 
-## Domande frequenti
+## FAQ
 
-**L'applicazione si avvia ma non vedo nessun dispositivo.**
-Assicurati di averla avviata come Amministratore e che Npcap sia installato. Controlla la barra di stato: se mostra `Admin: X` la scansione ARP e' disabilitata.
+**The application starts but I don't see any devices.**
+Make sure you started it as Administrator and that Npcap is installed. Check the status bar: if it shows `Admin: X`, ARP scanning is disabled.
 
-**Il grafico del traffico e' vuoto.**
-Il grafico richiede `pyqtgraph` e privilegi da amministratore per catturare i pacchetti. Verifica l'installazione con `pip show pyqtgraph`.
+**The traffic graph is empty.**
+The graph requires `pyqtgraph` and administrator privileges to capture packets. Verify the installation with `pip show pyqtgraph`.
 
-**Come blocco un dispositivo dalla rete?**
-Vai nella scheda **Devices**, fai clic destro sul dispositivo e scegli **Block Device (Firewall)**. L'applicazione aggiungera' una regola al Windows Firewall che blocca il traffico in uscita verso quell'IP. Per rimuovere la regola, aprire il Windows Defender Firewall e cercare le regole con prefisso `HomeNetMonitor_Block_`.
+**How do I block a device from the network?**
+Go to the **Devices** tab, right‑click the device and choose **Block Device (Firewall)**. The application will add a rule to the Windows Firewall that blocks outbound traffic to that IP. To remove the rule, open Windows Defender Firewall and look for rules prefixed `HomeNetMonitor_Block_`.
 
-**Gli alert si attivano troppo spesso.**
-Ogni coppia (regola, dispositivo) ha un cooldown di 60 secondi. Se il log si riempie comunque rapidamente, considera di aumentare le soglie o di specificare un IP preciso invece di "any".
+**Alerts fire too often.**
+Each (rule, device) pair has a 60‑second cooldown. If the log still fills up quickly, consider raising the thresholds or specifying a precise IP instead of "any".
 
-**Dove vengono salvati i dati?**
-Il database (`data.db`) e il file di log (`app.log`) si trovano in `%APPDATA%\HomeNetMonitor\`.
+**Where is the data stored?**
+The database (`data.db`) and the log file (`app.log`) are located in `%APPDATA%\HomeNetMonitor\`.
 
-**La geolocalizzazione non funziona.**
-HomeNetMonitor usa il servizio gratuito [ip-api.com](http://ip-api.com) che non richiede registrazione. Verifica la connessione internet. Gli indirizzi privati (192.168.x.x, 10.x.x.x, ecc.) non vengono mai geolocalizzati per design.
-
----
-
-## Contribuire
-
-1. Fai un fork del repository
-2. Crea un branch: `git checkout -b feature/mia-funzionalita`
-3. Esegui le modifiche e i test: `pytest tests/ -v`
-4. Fai commit: `git commit -m "Aggiungi mia funzionalita"`
-5. Fai push: `git push origin feature/mia-funzionalita`
-6. Apri una Pull Request
-
-Si prega di seguire PEP 8, aggiungere type hint su tutte le funzioni e includere docstring su tutti i metodi pubblici.
+**Geolocation doesn't work.**
+HomeNetMonitor uses the free [ip-api.com](http://ip-api.com) service, which requires no registration. Check your internet connection. Private addresses (192.168.x.x, 10.x.x.x, etc.) are never geolocated by design.
 
 ---
 
-## Licenza
+## Contributing
 
-Questo progetto e' distribuito sotto la [licenza MIT](LICENSE).
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/my-feature`
+3. Make your changes and run the tests: `pytest tests/ -v`
+4. Commit: `git commit -m "Add my feature"`
+5. Push: `git push origin feature/my-feature`
+6. Open a Pull Request
+
+Please follow PEP 8, add type hints to all functions, and include docstrings on all public methods.
+
+---
+
+## License
+
+This project is distributed under the [MIT license](LICENSE).
